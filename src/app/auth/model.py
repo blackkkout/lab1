@@ -1,12 +1,12 @@
 from typing import List
 
-from odmantic import Model, EmbeddedModel, Field
+from odmantic import Model, EmbeddedModel
 
 
 class Password(EmbeddedModel):
     value: str
     type: str
-    history: List[str] = Field(default_factory=list)
+    history: List[str]
 
 
 class User(Model):
