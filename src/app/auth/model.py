@@ -1,6 +1,6 @@
 from typing import List
 
-from odmantic import Model, EmbeddedModel
+from odmantic import Model, EmbeddedModel, Field
 
 
 class Password(EmbeddedModel):
