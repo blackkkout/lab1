@@ -34,7 +34,7 @@ async def register_user_post(request: Request, username: str = Form(...), passwo
             request=request, name="register.html", context={"registered": False}
         )
 
-    user = User(username=username, password=Password(value=password, type=password_type))
+    user = User(username=username, password=Password(value=password, type=password_type, history=[password]))
     await engine.save(user)
     return templates.TemplateResponse(
         request=request, name="register.html", context={"registered": True}
@@ -82,3 +82,45 @@ async def get_user_post(request: Request, username: str = Depends(get_user_from_
         return templates.TemplateResponse(
             request=request, name="user.html", context={"username": username},
         )
+
+
+@router.get("/user/change-password")
+async def change_password(request: Request, username: str = Depends(get_user_from_cookie)):
+    if not username:
+        response = Response(status_code=307, headers={"Location": "http://localhost:8000/login"})
+        return response
+    else:
+
+        return templates.TemplateResponse(
+            request=request, name="change-password.html")
+
+
+@router.post("/user/change-password")
+async def change_password(request: Request, password: str = Form(...), username: str = Depends(get_user_from_cookie)):
+    if not username:
+        response = Response(status_code=307, headers={"Location": "http://localhost:8000/login"})
+        return response
+    else:
+        user = await find_user_by_username(engine, username)
+        if password in user.password.history:
+            return templates.TemplateResponse(
+            request=request, name="change-password.html", context={"changed": False})
+        elif user.password.type == PasswordComplexity.STRONG.value:
+            password_type = validate_password(password)
+            if password_type == PasswordComplexity.STRONG.value:
+                user.password.value = password
+                if len(user.password.history) == 3:
+                    user.password.history.pop()
+                user.password.history.insert(0,password)
+                await engine.save(user)
+                return templates.TemplateResponse(request=request, name="change-password.html", context={"changed": True})
+            return templates.TemplateResponse(request=request, name="change-password.html", context={"changed": False})
+        else:
+            user.password.value = password
+            if len(user.password.history) == 3:
+                user.password.history.pop()
+            user.password.history.insert(0, password)
+            await engine.save(user)
+            return templates.TemplateResponse(
+            request=request, name="change-password.html", context={"changed": True})
+
