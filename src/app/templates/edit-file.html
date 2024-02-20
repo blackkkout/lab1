@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<form action="" class="w-100" id="form">
+    {% if filename %}
+    <div class="w-100">
+        <h3 id="filename">{{ filename }}</h3>
+        <label for="content"></label>
+        <textarea id="content" name="content" cols="60" rows="10">{{content}}</textarea>
+    </div>
+    <button type="submit" class="mt-2 btn btn-primary">Submit</button>
+    {% else %}
+    <div class="alert alert-danger mt-3">
+        File not found!
+    </div>
+    {% endif %}
+</form>
+{% endblock %}
+{% block script %}
+<script>
+    document.getElementById("form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const content = document.getElementById('content').value;
+        const filename = document.getElementById('filename').innerText;
+
+        try {
+            await fetch(`/write/${filename}`, {
+                method: "POST",
+                body: content
+            })
+            window.location.href = "/user/files/" + filename;
+
+        } catch (e) {
+            console.error(e)
+        }
+    });
+</script>
+{% endblock %}

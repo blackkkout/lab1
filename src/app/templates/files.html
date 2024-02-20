@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<form id="form">
+    <div>
+        <label for="file" class="h1 d-block">Files</label>
+        <select name="f" id="file">
+            {% for file_name in files %}
+            <option selected>Open this select file</option>
+            <option value="{{ file_name }}">{{ file_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary mt-3">Submit</button>
+</form>
+{% endblock %}
+{% block script %}
+<script>
+    document.getElementById("form").addEventListener("submit", function (event) {
+        event.preventDefault();
+        const idValue = document.getElementById('file').value;
+        console.log("TESTEEST")
+        window.location.href = "/user/files/" + idValue;
+    });
+</script>
+{% endblock %}

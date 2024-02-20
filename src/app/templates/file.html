@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="w-100">
+    {% if filename %}
+    <div class="w-100">
+        <h3>{{ filename }}</h3>
+        <div class="bg-light p-3">
+            <code>{{ content }}</code>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-danger mt-3">
+        File not found!
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

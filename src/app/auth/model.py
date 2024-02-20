@@ -1,6 +1,6 @@
 from typing import List
 
-from odmantic import Model, EmbeddedModel, Field
+from odmantic import Model, EmbeddedModel
 
 
 class Password(EmbeddedModel):
@@ -12,3 +12,4 @@ class Password(EmbeddedModel):
 class User(Model):
     username: str
     password: Password
+    role: str
