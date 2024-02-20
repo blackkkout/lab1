@@ -52,8 +52,6 @@ async def login_user(request: Request) -> HTMLResponse:
 async def login_user_post(username: str = Form(...), password: str = Form(...)):
     user = await find_user_by_username(engine, username)
 
-    print(user)
-
     if not user or user.password.value != password:
         return HTTPException(status_code=406)
 
@@ -98,29 +96,35 @@ async def change_password(request: Request, username: str = Depends(get_user_fro
 @router.post("/user/change-password")
 async def change_password(request: Request, password: str = Form(...), username: str = Depends(get_user_from_cookie)):
     if not username:
-        response = Response(status_code=307, headers={"Location": "http://localhost:8000/login"})
-        return response
-    else:
-        user = await find_user_by_username(engine, username)
-        if password in user.password.history:
-            return templates.TemplateResponse(
-            request=request, name="change-password.html", context={"changed": False})
-        elif user.password.type == PasswordComplexity.STRONG.value:
-            password_type = validate_password(password)
-            if password_type == PasswordComplexity.STRONG.value:
-                user.password.value = password
-                if len(user.password.history) == 3:
-                    user.password.history.pop()
-                user.password.history.insert(0,password)
-                await engine.save(user)
-                return templates.TemplateResponse(request=request, name="change-password.html", context={"changed": True})
-            return templates.TemplateResponse(request=request, name="change-password.html", context={"changed": False})
-        else:
-            user.password.value = password
-            if len(user.password.history) == 3:
-                user.password.history.pop()
-            user.password.history.insert(0, password)
-            await engine.save(user)
-            return templates.TemplateResponse(
-            request=request, name="change-password.html", context={"changed": True})
+        return redirect_to_login()
 
+    user = await find_user_by_username(engine, username)
+
+    if password in user.password.history:
+        return render_change_password(False)
+
+    if user.password.type == PasswordComplexity.STRONG.value:
+        password_type = validate_password(password)
+        if password_type == PasswordComplexity.STRONG.value:
+            await update_password(user, password)
+            return render_change_password(True)
+
+    await update_password(user, password)
+    return render_change_password(True)
+
+
+def redirect_to_login():
+    return Response(status_code=307, headers={"Location": "http://localhost:8000/login"})
+
+
+def render_change_password(changed):
+    return templates.TemplateResponse(
+        name="change-password.html", context={"changed": changed})
+
+
+async def update_password(user, password):
+    user.password.value = password
+    if len(user.password.history) == 3:
+        user.password.history.pop()
+    user.password.history.insert(0, password)
+    await engine.save(user)
