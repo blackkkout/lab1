@@ -5,9 +5,26 @@
     {% if filename %}
     <div class="w-100">
         <h3>{{ filename }}</h3>
+        {% if image %}
+        <img id="img" src="" alt="salam">
+        {% elif executable %}
         <div class="bg-light p-3">
             <code>{{ content }}</code>
         </div>
+        {% else %}
+        <div class="bg-light p-3">
+            <code>{{ content }}</code>
+        </div>
+        {% endif %}
+        {% if has_right is sameas True %}
+        <button onclick="goToEdit()" class="btn btn-primary">Edit file</button>
+        {% elif registered is sameas False %}
+        <div>
+        Can't edit
+        </div>
+        {% else %}
+        <div></div>
+        {% endif %}
     </div>
     {% else %}
     <div class="alert alert-danger mt-3">
@@ -15,4 +32,17 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+{% block script %}
+<script>
+    window.addEventListener("DOMContentLoaded", () => {
+        if ("{{ image }}".length) {
+            document.getElementById("img").src = "data:image/jpg;base64," + "{{ content }}";
+        }
+    })
+
+    function goToEdit() {
+        window.location.href = "/user/files/" + "{{ filename }}" + "/edit";
+    }
+</script>
 {% endblock %}

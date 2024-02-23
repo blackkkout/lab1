@@ -5,8 +5,16 @@
     {% if filename %}
     <div class="w-100">
         <h3 id="filename">{{ filename }}</h3>
-        <label for="content"></label>
-        <textarea id="content" name="content" cols="60" rows="10">{{content}}</textarea>
+        {% if image %}
+        <input id="text" type="text" value="text on image">
+        {% elif executable %}
+        <div>exe</div>
+        {% else %}
+        <div>
+            <label for="text"></label>
+            <textarea id="text" cols="60" rows="10">{{content}}</textarea>
+        </div>
+        {% endif %}
     </div>
     <button type="submit" class="mt-2 btn btn-primary">Submit</button>
     {% else %}
@@ -20,13 +28,13 @@
 <script>
     document.getElementById("form").addEventListener("submit", async (event) => {
         event.preventDefault();
-        const content = document.getElementById('content').value;
+        const text = document.getElementById('text').value;
         const filename = document.getElementById('filename').innerText;
 
         try {
             await fetch(`/write/${filename}`, {
                 method: "POST",
-                body: content
+                body: text
             })
             window.location.href = "/user/files/" + filename;
 

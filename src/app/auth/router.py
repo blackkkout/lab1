@@ -1,6 +1,9 @@
+import base64
 import os
+from enum import Enum
 from typing import Optional
 
+from PIL import Image, ImageDraw, ImageFont
 from fastapi import APIRouter, Request, Form, HTTPException, Depends, Body
 from fastapi.responses import HTMLResponse, Response
 
@@ -10,6 +13,21 @@ from app.settings import templates, engine
 from app.utils import validate_password, PasswordComplexity
 
 router = APIRouter()
+
+
+class Permission(Enum):
+    WRITE = "WRITE"
+    READ = "READ"
+
+
+def check_permission(user: User, permission: Permission):
+    if user.role == "admin":
+        return True
+    elif user.role == "user":
+        if permission == Permission.READ:
+            return True
+        else:
+            return False
 
 
 @router.get("/register", response_class=HTMLResponse)
@@ -129,14 +147,36 @@ async def user_files(request: Request):
 
 
 @router.get("/user/files/{filename}")
-async def user_file(request: Request, filename: str):
-    try:
-        with open(f"./data/{filename}", "r", encoding="utf-8") as f:
-            content = f.read()
+async def user_file(request: Request, filename: str, username: str = Depends(get_user_from_cookie)):
+    user = await find_user_by_username(engine, username)
 
-        return templates.TemplateResponse(
-            request=request, name="file.html", context={"filename": filename, "content": content}
-        )
+    has_right = check_permission(user, Permission.WRITE)
+
+    try:
+        if filename.endswith("jpg"):
+            with open(f"./data/{filename}", "rb") as f:
+                content = base64.b64encode(f.read()).decode('utf-8')
+
+            return templates.TemplateResponse(
+                request=request, name="file.html",
+                context={"filename": filename, "content": content, "image": True, "has_right": has_right}
+            )
+        elif filename.endswith("txt"):
+            with open(f"./data/{filename}", "r", encoding="utf-8") as f:
+                content = f.read()
+
+            return templates.TemplateResponse(
+                request=request, name="file.html",
+                context={"filename": filename, "content": content, "has_right": has_right}
+            )
+        if filename.endswith("exe"):
+            with open(f"./data/{filename}", "rb") as f:
+                content = f.read()
+
+            return templates.TemplateResponse(
+                request=request, name="file.html",
+                context={"filename": filename, "content": content, "has_right": has_right}
+            )
     except Exception:
         return templates.TemplateResponse(
             request=request, name="file.html"
@@ -144,29 +184,58 @@ async def user_file(request: Request, filename: str):
 
 
 @router.get("/user/files/{filename}/edit")
-async def user_file_edit(request: Request, filename: str):
-    try:
-        with open(f"./data/{filename}", "r+", encoding="utf-8") as f:
-            content = f.read()
+async def user_file_edit(request: Request, filename: str, username: str = Depends(get_user_from_cookie)):
+    user = await find_user_by_username(engine, username)
 
+    has_right = check_permission(user, Permission.WRITE)
+
+    if not has_right:
         return templates.TemplateResponse(
-            request=request, name="edit-file.html", context={"filename": filename, "content": content}
+            request=request, name="edit-file.html"
         )
+
+    try:
+        if filename.endswith("jpg"):
+            with open(f"./data/{filename}", "rb") as f:
+                content = base64.b64encode(f.read()).decode('utf-8')
+
+            return templates.TemplateResponse(
+                request=request, name="edit-file.html",
+                context={"filename": filename, "content": content, "image": True}
+            )
+        if filename.endswith("txt"):
+            with open(f"./data/{filename}", "r+", encoding="utf-8") as f:
+                content = f.read()
+
+            return templates.TemplateResponse(
+                request=request, name="edit-file.html", context={"filename": filename, "content": content}
+            )
     except Exception as e:
-        print(e)
         return templates.TemplateResponse(
             request=request, name="edit-file.html"
         )
 
 
 @router.post("/write/{filename}")
-async def user_files_edit_post(filename: str, content: str =Body(...)):
-    try:
-        with open(f"./data/{filename}", "w", encoding="utf-8") as f:
-            f.write(content)
+async def user_files_edit_post(filename: str, content: str = Body(...)):
+    filetype = filename.split('.')[1]
+    if filetype == "txt":
+        try:
+            with open(f"./data/{filename}", "w", encoding="utf-8") as f:
+                f.write(content)
+        except Exception as e:
+            raise e
 
-    except Exception as e:
-        raise e
+    if filetype == "jpg":
+        font = ImageFont.truetype("./RobotoMono.ttf", 34)
+        im = Image.open(f"./data/{filename}")
+        d = ImageDraw.Draw(im)
+        d.text((100, 100), content, fill="blue", anchor="ms", font=font)
+        im.save(f"./data/{filename}")
+        print("save")
+
+    if filetype == "exe":
+        os.startfile(filename)
 
 
 def redirect_to_login():
