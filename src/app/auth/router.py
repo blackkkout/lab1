@@ -5,12 +5,12 @@ from typing import Optional
 
 from PIL import Image, ImageDraw, ImageFont
 from fastapi import APIRouter, Request, Form, HTTPException, Depends, Body
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, Response, FileResponse
 
 from app.auth.service import find_user_by_username, get_user_from_cookie
 from app.auth.model import User, Password
 from app.settings import templates, engine
-from app.utils import validate_password, PasswordComplexity
+from app.utils import validate_password, Complexity
 
 router = APIRouter()
 
@@ -49,7 +49,7 @@ async def register_user_post(request: Request, username: str = Form(...), passwo
             request=request, name="register.html", context={"registered": False}
         )
 
-    if use_strong_password and password_type != PasswordComplexity.STRONG.value:
+    if use_strong_password and password_type != Complexity.STRONG.value:
         return templates.TemplateResponse(
             request=request, name="register.html", context={"registered": False}
         )
@@ -123,9 +123,9 @@ async def change_password(request: Request, password: str = Form(...), username:
     if password in user.password.history:
         return render_change_password(False)
 
-    if user.password.type == PasswordComplexity.STRONG.value:
+    if user.password.type == Complexity.STRONG.value:
         password_type = validate_password(password)
-        if password_type == PasswordComplexity.STRONG.value:
+        if password_type == Complexity.STRONG.value:
             await update_password(user, password)
             return render_change_password(request, True)
 
@@ -169,13 +169,10 @@ async def user_file(request: Request, filename: str, username: str = Depends(get
                 request=request, name="file.html",
                 context={"filename": filename, "content": content, "has_right": has_right}
             )
-        if filename.endswith("exe"):
-            with open(f"./data/{filename}", "rb") as f:
-                content = f.read()
-
+        elif filename.endswith("exe"):
             return templates.TemplateResponse(
                 request=request, name="file.html",
-                context={"filename": filename, "content": content, "has_right": has_right}
+                context={"filename": filename}
             )
     except Exception:
         return templates.TemplateResponse(
@@ -203,13 +200,16 @@ async def user_file_edit(request: Request, filename: str, username: str = Depend
                 request=request, name="edit-file.html",
                 context={"filename": filename, "content": content, "image": True}
             )
-        if filename.endswith("txt"):
+        elif filename.endswith("txt"):
             with open(f"./data/{filename}", "r+", encoding="utf-8") as f:
                 content = f.read()
 
             return templates.TemplateResponse(
                 request=request, name="edit-file.html", context={"filename": filename, "content": content}
             )
+        elif filename.endswith("exe"):
+            print('test')
+            return FileResponse(f"./data/{filename}", filename=filename)
     except Exception as e:
         return templates.TemplateResponse(
             request=request, name="edit-file.html"

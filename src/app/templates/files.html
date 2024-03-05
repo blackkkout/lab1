@@ -5,8 +5,8 @@
     <div>
         <label for="file" class="h1 d-block">Files</label>
         <select name="f" id="file">
-            {% for file_name in files %}
             <option selected>Open this select file</option>
+            {% for file_name in files %}
             <option value="{{ file_name }}">{{ file_name }}</option>
             {% endfor %}
         </select>
