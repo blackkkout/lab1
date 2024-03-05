@@ -12,4 +12,4 @@ class Password(EmbeddedModel):
 class User(Model):
     username: str
     password: Password
-    role: str
+    access_level: str

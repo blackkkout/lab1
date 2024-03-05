@@ -20,14 +20,42 @@ class Permission(Enum):
     READ = "READ"
 
 
-def check_permission(user: User, permission: Permission):
-    if user.role == "admin":
-        return True
-    elif user.role == "user":
-        if permission == Permission.READ:
-            return True
-        else:
-            return False
+files_perms = {
+    "text.txt": {
+        "permissions": {
+            "admin": [Permission.READ, Permission.WRITE],
+            "user": [Permission.READ]
+        }
+    },
+    "picture.jpg": {
+        "permissions": {
+            "admin": [Permission.READ, Permission.WRITE],
+            "user": [Permission.READ]
+        }
+    },
+    "elex_setup.exe": {
+        "permissions": {
+            "admin": [Permission.READ, Permission.WRITE],
+            "user": [Permission.READ]
+        }
+    }
+}
+
+
+def check_permission(filename: str, user_access: str, permission: Permission) -> bool:
+    file_perm = files_perms.get(filename)
+    if not file_perm:
+        return False
+
+    access_perms = file_perm.get("permissions")
+    if not access_perms:
+        return False
+
+    user_perms = access_perms.get(user_access)
+    if not user_perms:
+        return False
+
+    return permission in user_perms
 
 
 @router.get("/register", response_class=HTMLResponse)
@@ -39,7 +67,7 @@ async def register_user(request: Request) -> HTMLResponse:
 
 @router.post("/register")
 async def register_user_post(request: Request, username: str = Form(...), password: str = Form(...),
-                             role: Optional[str] = Form("user"),
+                             access: Optional[str] = Form("user"),
                              use_strong_password: Optional[bool] = Form(False,
                                                                         alias="use-strong-password")) -> HTMLResponse:
     password_type = validate_password(password)
@@ -54,7 +82,8 @@ async def register_user_post(request: Request, username: str = Form(...), passwo
             request=request, name="register.html", context={"registered": False}
         )
 
-    user = User(username=username, password=Password(value=password, type=password_type, history=[password]), role=role)
+    user = User(username=username, password=Password(value=password, type=password_type, history=[password]),
+                access_level=access)
     await engine.save(user)
     return templates.TemplateResponse(
         request=request, name="register.html", context={"registered": True}
@@ -150,7 +179,7 @@ async def user_files(request: Request):
 async def user_file(request: Request, filename: str, username: str = Depends(get_user_from_cookie)):
     user = await find_user_by_username(engine, username)
 
-    has_right = check_permission(user, Permission.WRITE)
+    has_right = check_permission(filename, user.access_level, Permission.WRITE)
 
     try:
         if filename.endswith("jpg"):
@@ -184,7 +213,7 @@ async def user_file(request: Request, filename: str, username: str = Depends(get
 async def user_file_edit(request: Request, filename: str, username: str = Depends(get_user_from_cookie)):
     user = await find_user_by_username(engine, username)
 
-    has_right = check_permission(user, Permission.WRITE)
+    has_right = check_permission(filename, user.access_level, Permission.WRITE)
 
     if not has_right:
         return templates.TemplateResponse(

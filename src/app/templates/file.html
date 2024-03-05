@@ -16,15 +16,6 @@
             <code>{{ content }}</code>
         </div>
         {% endif %}
-        {% if has_right is sameas True %}
-        <button onclick="goToEdit()" class="btn btn-primary">Edit file</button>
-        {% elif registered is sameas False %}
-        <div>
-        Can't edit
-        </div>
-        {% else %}
-        <div></div>
-        {% endif %}
         <a href="http://localhost:8000/user/files/{{filename}}/edit">Edit</a>
     </div>
     {% else %}
@@ -42,8 +33,5 @@
         }
     })
 
-    function goToEdit() {
-        window.location.href = "/user/files/" + "{{ filename }}" + "/edit";
-    }
 </script>
 {% endblock %}
