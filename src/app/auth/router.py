@@ -181,6 +181,11 @@ async def user_file(request: Request, filename: str, username: str = Depends(get
 
     has_right = check_permission(filename, user.access_level, Permission.WRITE)
 
+    if not has_right:
+        return templates.TemplateResponse(
+            request=request, name="edit-file.html"
+        )
+
     try:
         if filename.endswith("jpg"):
             with open(f"./data/{filename}", "rb") as f:
@@ -211,9 +216,12 @@ async def user_file(request: Request, filename: str, username: str = Depends(get
 
 @router.get("/user/files/{filename}/edit")
 async def user_file_edit(request: Request, filename: str, username: str = Depends(get_user_from_cookie)):
+    print(username)
     user = await find_user_by_username(engine, username)
+    print(user)
 
     has_right = check_permission(filename, user.access_level, Permission.WRITE)
+    print(has_right)
 
     if not has_right:
         return templates.TemplateResponse(
@@ -237,7 +245,6 @@ async def user_file_edit(request: Request, filename: str, username: str = Depend
                 request=request, name="edit-file.html", context={"filename": filename, "content": content}
             )
         elif filename.endswith("exe"):
-            print('test')
             return FileResponse(f"./data/{filename}", filename=filename)
     except Exception as e:
         return templates.TemplateResponse(
