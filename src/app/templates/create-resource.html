@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+<form action="/create-resource" method="post" enctype="multipart/form-data">
+        <input type="file" name="file">
+        <select name="access_level">
+            <option selected>Open this select file</option>
+            <option value="secret">secret</option>
+            <option value="non-secret">non-secret</option>
+        </select>
+        <button type="submit">Upload</button>
+    </form>
+{% endblock %}

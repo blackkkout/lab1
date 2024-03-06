@@ -1,61 +1,38 @@
 import base64
+import io
 import os
-from enum import Enum
 from typing import Optional
 
 from PIL import Image, ImageDraw, ImageFont
-from fastapi import APIRouter, Request, Form, HTTPException, Depends, Body
+from fastapi import APIRouter, Request, Form, HTTPException, Depends, Body, File, UploadFile
 from fastapi.responses import HTMLResponse, Response, FileResponse
 
 from app.auth.service import find_user_by_username, get_user_from_cookie
-from app.auth.model import User, Password
+from app.auth.model import User, Password, Resource
 from app.settings import templates, engine
 from app.utils import validate_password, Complexity
 
 router = APIRouter()
 
+file_perms = {
+    "public": 0,
+    "non-secret": 1,
+    "secret": 2
+}
 
-class Permission(Enum):
-    WRITE = "WRITE"
-    READ = "READ"
-
-
-files_perms = {
-    "text.txt": {
-        "permissions": {
-            "admin": [Permission.READ, Permission.WRITE],
-            "user": [Permission.READ]
-        }
-    },
-    "picture.jpg": {
-        "permissions": {
-            "admin": [Permission.READ, Permission.WRITE],
-            "user": [Permission.READ]
-        }
-    },
-    "elex_setup.exe": {
-        "permissions": {
-            "admin": [Permission.READ, Permission.WRITE],
-            "user": [Permission.READ]
-        }
-    }
+access_table = {
+    "admin": 3,
+    "user": 2
 }
 
 
-def check_permission(filename: str, user_access: str, permission: Permission) -> bool:
-    file_perm = files_perms.get(filename)
-    if not file_perm:
+def check_permission(file_access_level, user_access_level):
+    if access_table[user_access_level] > file_perms[file_access_level]:
+        return True
+    elif access_table[user_access_level] == file_perms[file_access_level]:
         return False
-
-    access_perms = file_perm.get("permissions")
-    if not access_perms:
-        return False
-
-    user_perms = access_perms.get(user_access)
-    if not user_perms:
-        return False
-
-    return permission in user_perms
+    else:
+        return None
 
 
 @router.get("/register", response_class=HTMLResponse)
@@ -164,11 +141,9 @@ async def change_password(request: Request, password: str = Form(...), username:
 
 @router.get("/user/files")
 async def user_files(request: Request):
-    file_list = []
+    files = await engine.find(Resource)
 
-    for root, directories, files in os.walk("./data"):
-        for file in files:
-            file_list.append(file)
+    file_list = map(lambda x: x.filename, files)
 
     return templates.TemplateResponse(
         request=request, name="files.html", context={"files": file_list}
@@ -178,37 +153,39 @@ async def user_files(request: Request):
 @router.get("/user/files/{filename}")
 async def user_file(request: Request, filename: str, username: str = Depends(get_user_from_cookie)):
     user = await find_user_by_username(engine, username)
+    file = await engine.find_one(Resource, Resource.filename == filename)
 
-    has_right = check_permission(filename, user.access_level, Permission.WRITE)
+    has_right = check_permission(file.access_level, user.access_level)
 
-    if not has_right:
+    print(has_right)
+
+    if has_right is None:
         return templates.TemplateResponse(
             request=request, name="edit-file.html"
         )
 
+
     try:
         if filename.endswith("jpg"):
-            with open(f"./data/{filename}", "rb") as f:
-                content = base64.b64encode(f.read()).decode('utf-8')
-
+            content = file.content.decode('utf-8')
             return templates.TemplateResponse(
                 request=request, name="file.html",
-                context={"filename": filename, "content": content, "image": True, "has_right": has_right}
+                context={"filename": filename, "content": content, "image": True, "has_right": True}
             )
         elif filename.endswith("txt"):
-            with open(f"./data/{filename}", "r", encoding="utf-8") as f:
-                content = f.read()
+            content = base64.b64decode(file.content).decode('utf-8')
+            print(content)
 
             return templates.TemplateResponse(
                 request=request, name="file.html",
-                context={"filename": filename, "content": content, "has_right": has_right}
+                context={"filename": filename, "content": content, "has_right": True}
             )
         elif filename.endswith("exe"):
             return templates.TemplateResponse(
                 request=request, name="file.html",
                 context={"filename": filename}
             )
-    except Exception:
+    except Exception as e:
         return templates.TemplateResponse(
             request=request, name="file.html"
         )
@@ -216,30 +193,25 @@ async def user_file(request: Request, filename: str, username: str = Depends(get
 
 @router.get("/user/files/{filename}/edit")
 async def user_file_edit(request: Request, filename: str, username: str = Depends(get_user_from_cookie)):
-    print(username)
     user = await find_user_by_username(engine, username)
-    print(user)
+    file = await engine.find_one(Resource, Resource.filename == filename)
 
-    has_right = check_permission(filename, user.access_level, Permission.WRITE)
-    print(has_right)
+    has_right = check_permission(file.access_level, user.access_level)
 
-    if not has_right:
+    if has_right is not True:
         return templates.TemplateResponse(
             request=request, name="edit-file.html"
         )
-
     try:
         if filename.endswith("jpg"):
-            with open(f"./data/{filename}", "rb") as f:
-                content = base64.b64encode(f.read()).decode('utf-8')
+            content = file.content.decode('utf-8')
 
             return templates.TemplateResponse(
                 request=request, name="edit-file.html",
                 context={"filename": filename, "content": content, "image": True}
             )
         elif filename.endswith("txt"):
-            with open(f"./data/{filename}", "r+", encoding="utf-8") as f:
-                content = f.read()
+            content = base64.b64decode(file.content).decode('utf-8')
 
             return templates.TemplateResponse(
                 request=request, name="edit-file.html", context={"filename": filename, "content": content}
@@ -254,24 +226,49 @@ async def user_file_edit(request: Request, filename: str, username: str = Depend
 
 @router.post("/write/{filename}")
 async def user_files_edit_post(filename: str, content: str = Body(...)):
+    file = await engine.find_one(Resource, Resource.filename == filename)
+
     filetype = filename.split('.')[1]
     if filetype == "txt":
-        try:
-            with open(f"./data/{filename}", "w", encoding="utf-8") as f:
-                f.write(content)
-        except Exception as e:
-            raise e
+        file.content = base64.b64encode(content.encode('utf-8'))
+        await engine.save(file)
 
     if filetype == "jpg":
         font = ImageFont.truetype("./RobotoMono.ttf", 34)
-        im = Image.open(f"./data/{filename}")
+        a = io.BytesIO(base64.b64decode(file.content))
+        # print(a)
+
+        im = Image.open(a)
         d = ImageDraw.Draw(im)
         d.text((100, 100), content, fill="blue", anchor="ms", font=font)
-        im.save(f"./data/{filename}")
-        print("save")
+        with io.BytesIO() as output:
+            im.save(output, format="JPEG")
+            file.content = base64.b64encode(output.getvalue())
+            await engine.save(file)
 
     if filetype == "exe":
         os.startfile(filename)
+
+
+@router.get("/create-resource")
+async def create_resource_post(request: Request):
+    return templates.TemplateResponse(
+        request=request, name="create-resource.html"
+    )
+
+
+@router.post("/create-resource")
+async def upload_file(file: UploadFile, access_level: str = Form(...), username: str = Depends(get_user_from_cookie)):
+    user = await find_user_by_username(engine, username)
+    print(file)
+    resource = Resource(
+        content=base64.b64encode(await file.read()),
+        access_level=access_level,
+        filename=file.filename,
+        userId=user.id
+    )
+    await engine.save(resource)
+    return "success"
 
 
 def redirect_to_login():
