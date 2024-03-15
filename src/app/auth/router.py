@@ -6,6 +6,7 @@ from typing import Optional
 from PIL import Image, ImageDraw, ImageFont
 from fastapi import APIRouter, Request, Form, HTTPException, Depends, Body, File, UploadFile
 from fastapi.responses import HTMLResponse, Response, FileResponse
+from starlette.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 from app.auth.service import find_user_by_username, get_user_from_cookie
 from app.auth.model import User, Password, Resource
@@ -198,6 +199,8 @@ async def user_file_edit(request: Request, filename: str, username: str = Depend
 
     has_right = check_permission(file.access_level, user.access_level)
 
+    print(has_right)
+
     if has_right is not True:
         return templates.TemplateResponse(
             request=request, name="edit-file.html"
@@ -217,7 +220,7 @@ async def user_file_edit(request: Request, filename: str, username: str = Depend
                 request=request, name="edit-file.html", context={"filename": filename, "content": content}
             )
         elif filename.endswith("exe"):
-            return FileResponse(f"./data/{filename}", filename=filename)
+            return StreamingResponse(io.BytesIO(base64.b64decode(file.content)), media_type="application/octet-stream")
     except Exception as e:
         return templates.TemplateResponse(
             request=request, name="edit-file.html"
@@ -236,7 +239,6 @@ async def user_files_edit_post(filename: str, content: str = Body(...)):
     if filetype == "jpg":
         font = ImageFont.truetype("./RobotoMono.ttf", 34)
         a = io.BytesIO(base64.b64decode(file.content))
-        # print(a)
 
         im = Image.open(a)
         d = ImageDraw.Draw(im)
@@ -258,7 +260,7 @@ async def create_resource_post(request: Request):
 
 
 @router.post("/create-resource")
-async def upload_file(file: UploadFile, access_level: str = Form(...), username: str = Depends(get_user_from_cookie)):
+async def upload_file(file: UploadFile, access_level: str = Form("non-secret"), username: str = Depends(get_user_from_cookie)):
     user = await find_user_by_username(engine, username)
     print(file)
     resource = Resource(
@@ -268,7 +270,7 @@ async def upload_file(file: UploadFile, access_level: str = Form(...), username:
         userId=user.id
     )
     await engine.save(resource)
-    return "success"
+    return RedirectResponse(url="/user")
 
 
 def redirect_to_login():
