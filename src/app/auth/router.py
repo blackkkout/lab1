@@ -4,9 +4,9 @@ import os
 from typing import Optional
 
 from PIL import Image, ImageDraw, ImageFont
-from fastapi import APIRouter, Request, Form, HTTPException, Depends, Body, File, UploadFile
-from fastapi.responses import HTMLResponse, Response, FileResponse
-from starlette.responses import JSONResponse, RedirectResponse, StreamingResponse
+from fastapi import APIRouter, Request, Form, HTTPException, Depends, Body, UploadFile
+from fastapi.responses import HTMLResponse, Response
+from starlette.responses import  RedirectResponse, StreamingResponse
 
 from app.auth.service import find_user_by_username, get_user_from_cookie
 from app.auth.model import User, Password, Resource
@@ -30,8 +30,8 @@ access_table = {
 def check_permission(file_access_level, user_access_level):
     if access_table[user_access_level] > file_perms[file_access_level]:
         return True
-    elif access_table[user_access_level] == file_perms[file_access_level]:
-        return False
+    # elif access_table[user_access_level] == file_perms[file_access_level]:
+    #     return False
     else:
         return None
 
@@ -199,7 +199,6 @@ async def user_file_edit(request: Request, filename: str, username: str = Depend
 
     has_right = check_permission(file.access_level, user.access_level)
 
-    print(has_right)
 
     if has_right is not True:
         return templates.TemplateResponse(
