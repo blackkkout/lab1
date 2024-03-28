@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block content %}
+<form action="/settings" method="POST">
+    <div>
+        <label for="type" class="h1 d-block">Access control system type</label>
+        <select name="type" id="type">
+            <option selected>Open this to select type</option>
+            <option value="discretionary">discretionary</option>
+            <option value="attribute">attribute based</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary mt-3">Submit</button>
+</form>
+{% endblock %}

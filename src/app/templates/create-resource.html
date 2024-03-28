@@ -2,12 +2,30 @@
 
 {% block content %}
 <form action="/create-resource" method="post" enctype="multipart/form-data">
-        <input type="file" name="file">
-        <select name="access_level">
-            <option selected>Open this select file</option>
-            <option value="secret">secret</option>
-            <option value="non-secret">non-secret</option>
-        </select>
-        <button type="submit">Upload</button>
-    </form>
+    <input type="file" name="file">
+    {% if control_system == "attribute" %}
+    <select name="access_level">
+        <option selected>Open this select file</option>
+        <option value="secret">secret</option>
+        <option value="non-secret">non-secret</option>
+    </select>
+    {% elif control_system == "discretionary" %}
+    <fieldset>
+        <legend>Choose your permissions</legend>
+        <div>
+            <input type="checkbox" id="coding" name="read" value="read"/>
+            <label for="coding">Read</label>
+        </div>
+        <div>
+            <input type="checkbox" id="music" name="write" value="write"/>
+            <label for="music">Write</label>
+        </div>
+        <div>
+            <input type="checkbox" id="music1" name="execute" value="execute"/>
+            <label for="music1">Exec</label>
+        </div>
+    </fieldset>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">Upload</button>
+</form>
 {% endblock %}

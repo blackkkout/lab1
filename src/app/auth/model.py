@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 
 from odmantic import Model, EmbeddedModel
 from bson import ObjectId, Binary
@@ -21,3 +21,6 @@ class Resource(Model):
     filename: str
     content: Binary
     userId: ObjectId
+    perms: Dict[str, List[str]]
+
+

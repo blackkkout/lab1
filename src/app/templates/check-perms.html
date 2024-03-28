@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div>
+    <div>
+        <div>
+            <label for="user" class="h1 d-block">Choose user</label>
+            <select name="user" id="user">
+                <option selected>Open this select user</option>
+                {% for user in user_list %}
+                <option value="{{ user.username }}">{{ user.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div id="list">
+
+            {% for file_name in files %}
+            <div id="{{file_name}}">
+                <h3>{{ file_name }}</h3>
+                <fieldset>
+                    <div>
+                        <input type="checkbox" id="coding" name="read" value="read"/>
+                        <label for="coding">Read</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="music" name="write" value="write"/>
+                        <label for="music">Write</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="music1" name="execute" value="execute"/>
+                        <label for="music1">Execute</label>
+                    </div>
+                </fieldset>
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+    <button id="btn" type="submit" class="btn btn-primary mt-3">Submit</button>
+</div>
+{% endblock %}
+{% block script %}
+<script>
+    window.addEventListener("DOMContentLoaded", () => {
+        const button = document.getElementById('btn')
+        button.addEventListener('click', async () => {
+            const el = document.querySelector("#list")
+            const mapped_data = {};
+
+            console.log(el.children)
+
+            Array.from(el.children).forEach((fileNameDiv) => {
+                const fileName = fileNameDiv.id;
+
+                const selectedPermissions = [];
+
+                const fieldset = fileNameDiv.querySelector('fieldset');
+
+                Array.from(fieldset.querySelectorAll('input[type="checkbox"]')).forEach(checkbox => {
+                    if (checkbox.checked) {
+                        selectedPermissions.push(checkbox.value.toUpperCase());
+                    }
+                });
+
+                mapped_data[fileName] = selectedPermissions;
+            });
+
+            console.log(mapped_data)
+
+            const selectElement = document.getElementById("user");
+
+            const selectedValue = selectElement.value;
+
+            await fetch(`/write-perms?userr=${selectedValue}`, {method: 'POST', body: JSON.stringify({mapped_data: mapped_data})})
+
+
+        })
+
+    })
+
+</script>
+{% endblock %}
